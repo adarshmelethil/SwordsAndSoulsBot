@@ -2,8 +2,12 @@ import os
 from tkinter import Frame, Label, Button, LEFT, RIGHT, Canvas
 from PIL import Image, ImageTk
 from pynput import mouse
+from pynput import keyboard
 import mss
 import threading
+import cv2
+from numpy import asarray
+
 # import Button, Controller, Listener
 
 
@@ -54,16 +58,40 @@ class Window(Frame):
         on_move=self.on_move,
         on_click=self.on_click)
     self.mouse_listener.start()
+    self.themouse = mouse.Controller()
+    self.thekeyboard = keyboard.Controller()
 
 
   def __del__(self):
     self.sct.close()
 
   def auto(self):
+    count = 0
+    prev_data = None
     while self.automation:
-      im = self.grabScreen()
-      print(im)
-      self.setCanvasImage(im)
+      count += 1
+      print(count)
+      image = self.grabScreen()
+      
+      data = asarray(image)
+      if prev_data is None:
+        prev_data = data
+      else:
+        prev_data_tmp = data
+        data = data - prev_data
+        prev_data = prev_data_tmp
+
+
+      # create Pillow image
+      
+      # data = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
+      image2 = Image.fromarray(data)
+      # print(im)
+      self.setCanvasImage(image2)
+
+      if count > 50:
+        break
+    print(f"Ran {count} loops")
 
   def startAuto(self):
     if not self.automation:
@@ -78,10 +106,11 @@ class Window(Frame):
     self.game_window = []
 
   def on_move(self, x, y):
-    # self.automation = False
-    if self.test:
-      print('Pointer moved to {0}'.format(
-        (x, y)))
+    self.automation = False
+    # if self.test:
+    #   print('Pointer moved to {0}'.format(
+    #     (x, y)))
+    pass
 
   def on_click(self, x, y, button, pressed):
     if self.select_window and pressed:
@@ -115,14 +144,33 @@ class Window(Frame):
     self.picture_canvas.create_image(0, 0, image=self.tkimage, anchor="nw")
     
 
+  def click(self):
+    self.themouse.press(mouse.Button.left)
+    self.themouse.release(mouse.Button.left)
+
+  def tap(self, key):
+    self.thekeyboard.press(key)
+    self.thekeyboard.release(key)
+
+  def centerMouse(self):
+    width = self.game_window[1][0] - self.game_window[0][0]
+    height = self.game_window[1][1] - self.game_window[0][1]
+    x_move = (self.game_window[0][0] + width/2) - self.themouse.position[0]
+    y_move = (self.game_window[0][1] + height/2) - self.themouse.position[1]
+
+    self.themouse.move(x_move, y_move)
+
   def testFunc(self):
     self.test = not self.test
     
-    if self.test:
-      # self.picture_label.configure(image=self.cow)
-      self.setCanvasImage(self.cow_img)
-    else:
-      # self.picture_canvas.create_image(0, 0, image=self.place_holder, anchor="nw")
-      self.setCanvasImage(self.placeholder_image)
-      # self.picture_label.configure(image=self.place_holder)
-    # self.picture_label.image = self.cow
+    # Move pointer relative to current position
+    if len(self.game_window) > 1:
+      self.centerMouse()
+      self.click()
+      self.click()
+      self.tap(keyboard.Key.up)
+
+    # Press and release
+    
+
+
